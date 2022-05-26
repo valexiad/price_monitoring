@@ -19,6 +19,7 @@ from django.contrib.auth.models import User
 from rest_framework.schemas import get_schema_view
 from rest_framework import routers, serializers, viewsets
 from rest_framework.permissions import IsAdminUser, IsAuthenticated 
+from rest_framework import filters
 import backend.views
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -47,8 +48,14 @@ class UserViewSet(viewsets.ModelViewSet):
     update:
         Update a user.
     """
-    queryset = User.objects.all()
+    http_method_names = ['get']
     serializer_class = UserSerializer
+    permission_classes = (IsAuthenticated,)
+    filter_backends = [filters.OrderingFilter]
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return User.objects.all()
     
     def get_permissions(self):
         """
@@ -57,9 +64,17 @@ class UserViewSet(viewsets.ModelViewSet):
         permission_classes = [IsAdminUser]
         return [permission() for permission in permission_classes]
 
+    def get_object(self):
+        lookup_field_value = self.kwargs[self.lookup_field]
+
+        obj = User.objects.get(lookup_field_value)
+        self.check_object_permissions(self.request, obj)
+
+        return obj
 
 router = routers.DefaultRouter()
 router.register(r'users', UserViewSet)
+router.register(r'track-item', backend.views.TrackItemHeaderViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

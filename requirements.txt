@@ -4,3 +4,4 @@ django-heroku
 pyyaml
 uritemplate
 djangorestframework
+djangorestframework-simplejwt
