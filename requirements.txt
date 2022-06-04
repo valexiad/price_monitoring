@@ -5,3 +5,6 @@ pyyaml
 uritemplate
 djangorestframework
 djangorestframework-simplejwt
+django-rest-swagger
+coreapi 
+pyyaml

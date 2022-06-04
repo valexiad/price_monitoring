@@ -3,6 +3,9 @@ from django.http import HttpResponse
 from backend.models import TrackItemHeader, TrackItemComponents
 from rest_framework import serializers, viewsets
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from django.core.exceptions import PermissionDenied
+from django.contrib.auth.models import User
+
 
 # Create your views here.
 def index(request):
@@ -13,27 +16,33 @@ class TrackItemHeaderSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrackItemHeader
         fields = ('name', 'description', 'user')
+        read_only_fields = ['user']
+
+    def create(self, validated_data):
+        user_id = self.context['request'].user.id
+        validated_data['user'] = User.objects.get(id=user_id)
+        return super().create(validated_data)
 
 
 class TrackItemHeaderViewSet(viewsets.ModelViewSet):
     """
     retrieve:
-        Return a user instance.
+        Return a track item instance.
 
     list:
-        Return all users, ordered by most recently joined.
+        Return all track items of the user, ordered by most recently joined.
 
     create:
-        Create a new user.
+        Create a new track item .
 
     delete:
-        Remove an existing user.
+        Remove an existing track item.
 
     partial_update:
-        Update one or more fields on an existing user.
+        Update one or more fields on an existing track item.
 
     update:
-        Update a user.
+        Update a track item.
     """
     queryset = TrackItemHeader.objects.all()
     serializer_class = TrackItemHeaderSerializer
@@ -46,12 +55,21 @@ class TrackItemHeaderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return TrackItemHeader.objects.filter(user=user)
 
-    
     def get_permissions(self):
         """
         Instantiates and returns the list of permissions that this view requires.
         """
-        permission_classes = [IsAuthenticated, IsAdminUser]
+        if 'user_id' in self.kwargs:
+            if self.request.user.id != int(self.kwargs['user_id']):
+                raise PermissionDenied()
+        else:
+            raise PermissionDenied()
+
+        # if self.request.method == 'POST':
+        #     if self.request.data['user_id'] != self.request.user.id:
+        #         raise PermissionDenied()
+        
+        permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
 

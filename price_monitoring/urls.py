@@ -18,11 +18,12 @@ from django.urls import path, include
 from django.contrib.auth.models import User
 from rest_framework.schemas import get_schema_view
 from rest_framework import routers, serializers, viewsets
+from django.views.generic import TemplateView
 from rest_framework.permissions import IsAdminUser, IsAuthenticated 
 from rest_framework import filters
 import backend.views
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('url', 'username', 'email', 'is_staff')
@@ -48,38 +49,54 @@ class UserViewSet(viewsets.ModelViewSet):
     update:
         Update a user.
     """
-    http_method_names = ['get']
+    http_method_names = ['get', 'post']
     serializer_class = UserSerializer
-    permission_classes = (IsAuthenticated,)
     filter_backends = [filters.OrderingFilter]
-
-    def get_queryset(self):
-        if self.request.user.is_superuser:
-            return User.objects.all()
     
     def get_permissions(self):
         """
         Instantiates and returns the list of permissions that this view requires.
         """
-        permission_classes = [IsAdminUser]
+        permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
-    def get_object(self):
-        lookup_field_value = self.kwargs[self.lookup_field]
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return User.objects.all()
+        else:
+            return User.objects.filter(id=user.id)
 
-        obj = User.objects.get(lookup_field_value)
-        self.check_object_permissions(self.request, obj)
+    def list_queryset(self):
+        user = self.request.user
+        return User.objects.filter(user=user)
 
-        return obj
+    # def get_object(self):
+    #     lookup_field_value = self.kwargs[self.lookup_field]
+
+    #     obj = User.objects.get(lookup_field_value)
+    #     self.check_object_permissions(self.request, obj)
+
+    #     return obj
 
 router = routers.DefaultRouter()
-router.register(r'users', UserViewSet)
-router.register(r'track-item', backend.views.TrackItemHeaderViewSet)
+router.register('users', UserViewSet, basename='user')
+router.register('users/(?P<user_id>\d+)/track-items', backend.views.TrackItemHeaderViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('docs', get_schema_view()),
     path('', backend.views.index, name="index"),
     path('', include(router.urls)),
+    # path('users', UserViewSet.as_view({'get': 'list'}), name='users'),
+    # path('users/<int:user_id>/track-', backend.views.TrackItemHeaderViewSet.as_view({'get': 'list'}), name='track-items'),
+    path('openapi/', get_schema_view(
+        title="Price Monitoring Service", public=True,
+    ), name='openapi-schema'),
+    path('docs/', TemplateView.as_view(
+        template_name='documentation.html',
+        extra_context={'schema_url':'openapi-schema'}
+    ), name='swagger-ui'),
 ]
+
+
 
