@@ -4,7 +4,7 @@ from backend.models import TrackItemHeader, TrackItemComponents
 from rest_framework import serializers, viewsets
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.core.exceptions import PermissionDenied
-from django.contrib.auth.models import User
+from backend.user.models import User
 
 
 # Create your views here.
@@ -62,12 +62,6 @@ class TrackItemHeaderViewSet(viewsets.ModelViewSet):
         if 'user_id' in self.kwargs:
             if self.request.user.id != int(self.kwargs['user_id']):
                 raise PermissionDenied()
-        else:
-            raise PermissionDenied()
-
-        # if self.request.method == 'POST':
-        #     if self.request.data['user_id'] != self.request.user.id:
-        #         raise PermissionDenied()
         
         permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]

@@ -15,13 +15,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.contrib.auth.models import User
+from backend.user.models import User
 from rest_framework.schemas import get_schema_view
 from rest_framework import routers, serializers, viewsets
-from django.views.generic import TemplateView
-from rest_framework.permissions import IsAdminUser, IsAuthenticated 
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import filters
 import backend.views
+from backend.user.viewsets import UserViewSet
+from backend.auth.viewsets import LoginViewSet, RegistrationViewSet, RefreshViewSet
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,6 +55,7 @@ class UserViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post']
     serializer_class = UserSerializer
     filter_backends = [filters.OrderingFilter]
+    authentication_classes = [SessionAuthentication]
     
     def get_permissions(self):
         """
@@ -71,17 +75,17 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return User.objects.filter(user=user)
 
-    # def get_object(self):
-    #     lookup_field_value = self.kwargs[self.lookup_field]
-
-    #     obj = User.objects.get(lookup_field_value)
-    #     self.check_object_permissions(self.request, obj)
-
-    #     return obj
-
 router = routers.DefaultRouter()
 router.register('users', UserViewSet, basename='user')
-router.register('users/(?P<user_id>\d+)/track-items', backend.views.TrackItemHeaderViewSet)
+router.register('users/(?P<user_id>\d+)/track-items', backend.views.TrackItemHeaderViewSet, basename='track-items')
+
+# AUTHENTICATION
+router.register(r'auth/login', LoginViewSet, basename='auth-login')
+router.register(r'auth/register', RegistrationViewSet, basename='auth-register')
+router.register(r'auth/refresh', RefreshViewSet, basename='auth-refresh')
+
+# USER
+# router.register(r'user', UserViewSet, basename='user')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -89,13 +93,18 @@ urlpatterns = [
     path('', include(router.urls)),
     # path('users', UserViewSet.as_view({'get': 'list'}), name='users'),
     # path('users/<int:user_id>/track-', backend.views.TrackItemHeaderViewSet.as_view({'get': 'list'}), name='track-items'),
-    path('openapi/', get_schema_view(
-        title="Price Monitoring Service", public=True,
-    ), name='openapi-schema'),
-    path('docs/', TemplateView.as_view(
-        template_name='documentation.html',
-        extra_context={'schema_url':'openapi-schema'}
-    ), name='swagger-ui'),
+    # path('openapi/', get_schema_view(
+    #     title="Price Monitoring Service", public=True,
+    # ), name='openapi-schema'),
+    # path('docs/', TemplateView.as_view(
+    #     template_name='documentation.html',
+    #     extra_context={'schema_url':'openapi-schema'}
+    # ), name='swagger-ui'),
+    # YOUR PATTERNS
+    path('schema/', SpectacularAPIView.as_view(permission_classes=[AllowAny]), name='schema'),
+    # Optional UI:
+    path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
 
